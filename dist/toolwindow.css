@@ -77,8 +77,7 @@ Use this as a template for toolwindow styling
 	background: red;
 }
 .dialog button.hover,
-.dialog button.active
-{
+.dialog button.active {
 	cursor: pointer;
 }
 .dialog .button-bar button {
