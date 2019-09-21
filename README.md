@@ -29,11 +29,11 @@ var toolWindow = new ToolWindow({
   height: 250, // starting height
   minWidth: 150, // don't go thinner than this
   minHeight: 200, // don't go shorter than this
-  //closeButtonText:  "\u2716", // ✖
-  //placement: "inside,auto",
-  //relativeToElement: "#container",
-  //animated: true,
-  //animationTime: 1000,
+  closeButtonText:  "\u2716", // ✖
+  placement: "inside,auto",
+  relativeToElement: "#container",
+  animated: true,
+  animationTime: 1000,
   content: {
     // simple text content -- you can also use "html" or "url" (more on that later) 
     type: "text",
@@ -59,6 +59,7 @@ var toolWindow = new ToolWindow({
           type: "html",
           value: "<hr/>This is html<hr/>"
         };
+        // optionally fit to content
         //this.fitContent(); 
         this.refresh();
       }
