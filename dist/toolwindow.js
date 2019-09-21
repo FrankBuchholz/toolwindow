@@ -23,7 +23,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
   }, { "./lib/toolwindow": 4 }], 2: [function (require, module, exports) {
     var defaultOptions = {
       title: "Tool Window",
-      closeButtonText: "✖",
+      closeButtonText: "\u2716", // ✖ = &#x2716; = \u2716
       buttons: [{
         text: "Ok",
         clicked: function clicked() {
@@ -78,10 +78,8 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
        */
       horizontalEdge: "horizontalEdge",
       /**
-       * alignment: horizontalEdge
-       *   outside the element, but vertically horizontalEdge-aligned
-       *   - so top-right has the top the dialog in-line with the top of the element and
-       *      the dialog is to the right of the element
+       * alignment: verticalEdge
+       *   outside the element, but vertically verticalEdge-aligned
        */
       verticalEdge: "verticalEdge"
     };
@@ -240,6 +238,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
      *
      * Originally designed by ZulNs, @Gorontalo, Indonesia, 7 June 2017
      * Modified to be a re-usable component by Davyd McColl, 2019
+     * Extended to allow selecting and copying content by Frank Buchholz, 2019
      */
 
     var _require2 = require("./config"),
@@ -277,7 +276,16 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
       // TODO: determine auto position?
 
-      this._minW = this._options.minWidth;
+	  // Calculate minimal width to show all buttons
+	  // CSS: .dialog .button-bar button { min-width: 64px; padding: 0 5px; border: 1px; margin: 5px; }
+	  // The following formula works even if it's too narrow in the beginning.
+	  // The width gets extended as required in fitContent() -> ctx.self.moveTo() later
+      this._minW = Math.max(this._options.minWidth,
+		+ this._options.buttons.length * 64			// min-width: 64px;
+		+ this._options.buttons.length * (2 * 5)	// margin: 5px;
+		- 49	// 'Magic' value works perfectly fine if content of popup is small
+	  );
+	  this._log('#buttons='+this._options.buttons.length+' minWidth='+this._options.minWidth+' _minW='+this._minW);
       this._minH = this._options.minHeight;
       if (this._options.width < this._minW) {
         this._options.width = this._minW;
@@ -293,7 +301,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       this._resizeMode = '';
       this._initialPlacementDone = false;
       this._raised = false;
-      this._handlingMouseEvent = false;
 
       if (this._options.boundingElement) {
         this._boundingElement = typeof this._options.boundingElement === "string" ? document.querySelector(this._options.boundingElement) : this._options.boundingElement;
@@ -302,15 +309,19 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       this._createDialogStructure();
       this._bindMouseEvents();
 
-      // TODO: fix this magick -- should probably be calculated on first show,
-      //  once the buttons are actually rendered
-      this._minW = Math.max(this._minW, (this._buttons.length - 1) * 84 + 13);
-      this._minW = Math.max(this._minW, (this._buttons.length - 1) * 84 + 13);
-
       this._shownCount = 0;
     }
 
     ToolWindow.prototype = {
+	  _log: function(text){if(window.__debug_toolwindow__)console.log(text);}, // show log if true
+	  
+      get title() {
+        return this._options.title;
+      },
+      set title(value) {
+        this._options.title = value;
+      },
+
       get content() {
         return this._options.content;
       },
@@ -399,8 +410,11 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         }, frameTime);
       },
       refresh: function refresh() {
-        var _this3 = this;
+        var _self = this;
 
+        if (this._options.title) {
+		  _self._setTitle(this._options.title);
+		}
         if (!this._options.content) {
           this._setText("No content defined");
           return;
@@ -408,13 +422,13 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         switch (this._options.content.type) {
           case "text":
             this._fetchContent(function (result) {
-              return _this3._setText(result);
+              return _self._setText(result);
             });
             break;
           case "html":
           case "text/html":
             this._fetchContent(function (result) {
-              return _this3._setHTML(result);
+              return _self._setHTML(result);
             });
             break;
           case "url":
@@ -720,6 +734,13 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         }
         return current + delta;
       },
+      _setTitle: function _setTitle(text) {
+        this._dialogTitleText.innerHTML = "";
+        if (typeof text !== "string") {
+          text = (text || "").toString();
+        }
+        this._dialogTitleText.innerText = text;
+      },
       _setText: function _setText(text) {
         this._dialogContent.innerHTML = "";
         if (typeof text !== "string") {
@@ -782,11 +803,11 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       },
       _createTitlebar: function _createTitlebar() {
         this._dialogTitle = this._mkDiv("titlebar", this._dialog);
-        this._dialogTitle.innerText = this._options.title;
-
         this._closeButton = this._mkEl("button", "close", this._dialogTitle);
         this._closeButton.innerText = this._options.closeButtonText;
         this._closeButton.addEventListener("click", this.hide.bind(this));
+        this._dialogTitleText = this._mkEl("span", "", this._dialogTitle);
+        this._dialogTitleText.innerText = this._options.title;
       },
       _createContentArea: function _createContentArea() {
         this._dialogContent = this._mkDiv("content", this._dialog);
@@ -884,7 +905,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         }
       },
       _suppressEvent: function _suppressEvent(evt) {
-        if (evt.stopPropagation) {
+		if (evt.stopPropagation) {
           evt.stopPropagation();
         }
         if (evt.preventDefault) {
@@ -900,6 +921,11 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         if (!evt || !evt.target) {
           return;
         }
+		this._log('_onMouseDown: '+(this._isDrag?' Drag':'')+(this._isResize?' resize=':'')+this._resizeMode+(this._isButton?' Button':''));
+
+		if (!this._resizeMode && evt.target.closest(".dialog>.content")) { // Allow normal events on content element
+			return;
+		}
         var rect = this._getOffset(this._dialog);
         this._maxX = Math.max(document.documentElement["clientWidth"], document.body["scrollWidth"], document.documentElement["scrollWidth"], document.body["offsetWidth"], document.documentElement["offsetWidth"]);
         this._maxY = Math.max(document.documentElement["clientHeight"], document.body["scrollHeight"], document.documentElement["scrollHeight"], document.body["offsetHeight"], document.documentElement["offsetHeight"]);
@@ -916,7 +942,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         this._leftPos = rect.left;
         this._topPos = rect.top;
 
-        if (evt.target === this._dialogTitle && this._resizeMode === '') {
+        if (!this._resizeMode && (evt.target === this._dialogTitle || evt.target === this._dialogTitleText)) {
           this._setCursor('move');
           this._isDrag = true;
         } else if (this._resizeMode !== '') {
@@ -1121,9 +1147,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         if (!evt || !evt.target) {
           return;
         }
-        if (this._handlingMouseEvent) {
-          return;
-        }
+
         if (this._isDrag) {
           this._doDrag(evt);
         } else if (this._isResize) {
@@ -1161,10 +1185,18 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
             this._resizeMode = '';
           }
         }
+		this._log('_onMouseMove: '+(this._isDrag?' Drag':'')+(this._isResize?' resize=':'')+this._resizeMode+(this._isButton?' Button':''));		
+		if (!this._isDrag && !this._isResize && !this._resizeMode && !this._isButton) { // Allow normal events like 'extend selection' on content element and events on external objects
+          return;
+        }
         return this._suppressEvent(evt);
       },
       _onMouseUp: function _onMouseUp(evt) {
         evt = evt || window.event;
+		this._log('_onMouseUp: '+(this._isDrag?' Drag':'')+(this._isResize?' resize=':'')+this._resizeMode+(this._isButton?' Button':''));		
+       if (!this._isDrag && !this._isResize && !this._resizeMode && !this._isButton) { // Allow normal events like 'extend selection' on content element and events on external objects
+          return;
+        }
         if (this._isDrag) {
           this._setCursor('');
           this._isDrag = false;

@@ -29,17 +29,22 @@ var toolWindow = new ToolWindow({
   height: 250, // starting height
   minWidth: 150, // don't go thinner than this
   minHeight: 200, // don't go shorter than this
+  //closeButtonText:  "\u2716", // ✖
+  //placement: "inside,auto",
+  //relativeToElement: "#container",
+  //animated: true,
+  //animationTime: 1000,
   content: {
     // simple text content -- you can also use "html" or "url" (more on that later) 
     type: "text",
-    content: "Hello World!"
+    value: "Hello World!"
   },
   title: "Demo window", // goes in the title bar,
   buttons: [{
-    title: "Dismiss",
+    text: "Dismiss",
     clicked: function() {
         // button click handlers are invoked with the toolwindow as the `this` parameter
-        this.close();
+        this.hide();
       }
     }, {
       text: "Refresh",
@@ -49,10 +54,12 @@ var toolWindow = new ToolWindow({
         // - string
         // - function producing a string
         // - async function producing a string (ie, promise)
+        this.title = 'New title of demo window';
         this.content = {
           type: "html",
           value: "<hr/>This is html<hr/>"
         };
+        //this.fitContent(); 
         this.refresh();
       }
     }]
