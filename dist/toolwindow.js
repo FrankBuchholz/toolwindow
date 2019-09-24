@@ -4,6 +4,20 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
+/*
+ * Pure JavaScript for Draggable and Risizable Dialog Box
+ *
+ * Originally designed by ZulNs, @Gorontalo, Indonesia, 7 June 2017
+ * Modified to be a re-usable component by Davyd McColl, 2019
+ * Extended to allow selecting and copying content by Frank Buchholz, 2019
+ *
+ *
+ * This file is generated. If you'd like to make modifications and contributions,
+ * change files under lib and run:
+ *   npm run autobuild
+ * to regenerate this file as you make changes
+ */
+
 (function () {
   function r(e, n, t) {
     function o(i, f) {
@@ -23,7 +37,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
   }, { "./lib/toolwindow": 4 }], 2: [function (require, module, exports) {
     var defaultOptions = {
       title: "Tool Window",
-      closeButtonText: "✖",
+      closeButtonText: "\u2716", // ✖ = &#x2716; = \u2716
       buttons: [{
         text: "Ok",
         clicked: function clicked() {
@@ -78,10 +92,8 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
        */
       horizontalEdge: "horizontalEdge",
       /**
-       * alignment: horizontalEdge
-       *   outside the element, but vertically horizontalEdge-aligned
-       *   - so top-right has the top the dialog in-line with the top of the element and
-       *      the dialog is to the right of the element
+       * alignment: verticalEdge
+       *   outside the element, but vertically verticalEdge-aligned
        */
       verticalEdge: "verticalEdge"
     };
@@ -235,13 +247,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       verticalEdge: verticalEdge
     };
   }, { "./config": 2 }], 4: [function (require, module, exports) {
-    /*
-     * Pure JavaScript for Draggable and Risizable Dialog Box
-     *
-     * Originally designed by ZulNs, @Gorontalo, Indonesia, 7 June 2017
-     * Modified to be a re-usable component by Davyd McColl, 2019
-     */
-
     var _require2 = require("./config"),
         defaultOptions = _require2.defaultOptions,
         alignments = _require2.alignments,
@@ -277,7 +282,14 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
       // TODO: determine auto position?
 
-      this._minW = this._options.minWidth;
+      // Calculate minimal width to show all buttons
+      // CSS: .dialog .button-bar button { min-width: 64px; padding: 0 5px; border: 1px; margin: 5px; }
+      // The following formula works even if it's too narrow in the beginning.
+      // The width gets extended as required in fitContent() -> ctx.self.moveTo() later
+      this._minW = Math.max(this._options.minWidth, +this._options.buttons.length * 64 // min-width: 64px;
+      + this._options.buttons.length * (2 * 5) // margin: 5px;
+      - 49); // 'Magic' value works perfectly fine if content of popup is small
+      this._log("#buttons=" + this._options.buttons.length + " minWidth=" + this._options.minWidth + " _minW=" + this._minW);
       this._minH = this._options.minHeight;
       if (this._options.width < this._minW) {
         this._options.width = this._minW;
@@ -311,6 +323,19 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
     }
 
     ToolWindow.prototype = {
+      _log: function _log(text) {
+        if (window.__debug_toolwindow__) {
+          console.log(text);
+        }
+      },
+
+      get title() {
+        return this._options.title;
+      },
+      set title(value) {
+        this._options.title = value;
+      },
+
       get content() {
         return this._options.content;
       },
@@ -401,6 +426,9 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       refresh: function refresh() {
         var _this3 = this;
 
+        if (this._options.title) {
+          this._setTitle(this._options.title);
+        }
         if (!this._options.content) {
           this._setText("No content defined");
           return;
@@ -487,6 +515,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       moveToConfiguredStartPosition: function moveToConfiguredStartPosition() {
         if (this._isAutoPosition) {
           return;
+          gg;
         }
         this._relativeElement = this._relativeElement || this._findRelativeElement();
         if (!this._relativeElement) {
@@ -500,7 +529,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
       get _isAutoPosition() {
         var placement = (this._options.placement || "").trim().toLowerCase();
-        return !placement || placement.split("|").indexOf("auto") > -1;
+        return !placement || placement.split(/[,|;\s]/).indexOf("auto") > -1;
       },
 
       _positionWith: function _positionWith(el, placements) {
@@ -720,6 +749,16 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         }
         return current + delta;
       },
+
+
+      _setTitle: function _setTitle(text) {
+        this._dialogTitleText.innerHTML = "";
+        if (typeof text !== "string") {
+          text = (text || "").toString();
+        }
+        this._dialogTitleText.innerText = text;
+      },
+
       _setText: function _setText(text) {
         this._dialogContent.innerHTML = "";
         if (typeof text !== "string") {
@@ -782,11 +821,13 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       },
       _createTitlebar: function _createTitlebar() {
         this._dialogTitle = this._mkDiv("titlebar", this._dialog);
-        this._dialogTitle.innerText = this._options.title;
 
         this._closeButton = this._mkEl("button", "close", this._dialogTitle);
         this._closeButton.innerText = this._options.closeButtonText;
         this._closeButton.addEventListener("click", this.hide.bind(this));
+
+        this._dialogTitleText = this._mkEl("span", "", this._dialogTitle);
+        this._dialogTitleText.innerText = this._options.title;
       },
       _createContentArea: function _createContentArea() {
         this._dialogContent = this._mkDiv("content", this._dialog);
@@ -894,6 +935,9 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
           return false;
         }
       },
+      _logOnMouseDown: function _logOnMouseDown() {
+        this._log("_onMouseDown: " + (this._isDrag ? " Drag" : "") + (this._isResize ? " resize=" : "") + this._resizeMode + (this._isButton ? " Button" : ""));
+      },
       _onMouseDown: function _onMouseDown(evt) {
         this._raiseDialog();
         evt = evt || window.event;
@@ -916,15 +960,16 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         this._leftPos = rect.left;
         this._topPos = rect.top;
 
-        if (evt.target === this._dialogTitle && this._resizeMode === '') {
-          this._setCursor('move');
+        if (evt.target === this._dialogTitle && !this._resizeMode) {
+          this._setCursor("move");
           this._isDrag = true;
-        } else if (this._resizeMode !== '') {
+        } else if (this._resizeMode) {
           this._isResize = true;
         }
         if (this._coverContentDuringMoveAndResize) {
           this._createContentCover();
         }
+        this._logOnMouseDown();
         return this._suppressEvent(evt);
       },
       _createContentCover: function _createContentCover() {
@@ -1116,6 +1161,9 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         }
         this._setDialogContentSizing();
       },
+      _logOnMouseMove: function _logOnMouseMove() {
+        this._log("_onMouseMove: " + (this._isDrag ? " Drag" : "") + (this._isResize ? " resize=" : "") + this._resizeMode + (this._isButton ? " Button" : ""));
+      },
       _onMouseMove: function _onMouseMove(evt) {
         evt = evt || window.event;
         if (!evt || !evt.target) {
@@ -1161,7 +1209,11 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
             this._resizeMode = '';
           }
         }
+        this._logOnMouseMove();
         return this._suppressEvent(evt);
+      },
+      _logOnMouseUp: function _logOnMouseUp() {
+        this._log("_onMouseUp: " + (this._isDrag ? " Drag" : "") + (this._isResize ? " resize=" : "") + this._resizeMode + (this._isButton ? " Button" : ""));
       },
       _onMouseUp: function _onMouseUp(evt) {
         evt = evt || window.event;
@@ -1175,6 +1227,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         } else if (this._isButton) {
           this._isButton = false;
         }
+        this._logOnMouseUp();
         this._removeContentCover();
         return this._suppressEvent(evt);
       },
