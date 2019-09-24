@@ -305,7 +305,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       this._resizeMode = '';
       this._initialPlacementDone = false;
       this._raised = false;
-      this._handlingMouseEvent = false;
 
       if (this._options.boundingElement) {
         this._boundingElement = typeof this._options.boundingElement === "string" ? document.querySelector(this._options.boundingElement) : this._options.boundingElement;
@@ -313,11 +312,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
       this._createDialogStructure();
       this._bindMouseEvents();
-
-      // TODO: fix this magick -- should probably be calculated on first show,
-      //  once the buttons are actually rendered
-      this._minW = Math.max(this._minW, (this._buttons.length - 1) * 84 + 13);
-      this._minW = Math.max(this._minW, (this._buttons.length - 1) * 84 + 13);
 
       this._shownCount = 0;
     }
@@ -515,7 +509,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       moveToConfiguredStartPosition: function moveToConfiguredStartPosition() {
         if (this._isAutoPosition) {
           return;
-          gg;
         }
         this._relativeElement = this._relativeElement || this._findRelativeElement();
         if (!this._relativeElement) {
@@ -807,6 +800,10 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         });
         if (this._options.escapeCloses) {
           this._dialog.addEventListener("click", function (ev) {
+            if (ev.target.closest(".dialog>.content")) {
+              // Allow normal events on content element
+              return;
+            }
             return _this5._suppressEvent(ev);
           });
           document.addEventListener("keydown", function (ev) {
@@ -944,6 +941,10 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         if (!evt || !evt.target) {
           return;
         }
+        if (!this._resizeMode && evt.target.closest(".dialog>.content")) {
+          // Allow normal events on content element
+          return;
+        }
         var rect = this._getOffset(this._dialog);
         this._maxX = Math.max(document.documentElement["clientWidth"], document.body["scrollWidth"], document.documentElement["scrollWidth"], document.body["offsetWidth"], document.documentElement["offsetWidth"]);
         this._maxY = Math.max(document.documentElement["clientHeight"], document.body["scrollHeight"], document.documentElement["scrollHeight"], document.body["offsetHeight"], document.documentElement["offsetHeight"]);
@@ -960,7 +961,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         this._leftPos = rect.left;
         this._topPos = rect.top;
 
-        if (evt.target === this._dialogTitle && !this._resizeMode) {
+        if (!this._resizeMode && (evt.target === this._dialogTitle || evt.target === this._dialogTitleText)) {
           this._setCursor("move");
           this._isDrag = true;
         } else if (this._resizeMode) {
@@ -1169,9 +1170,6 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
         if (!evt || !evt.target) {
           return;
         }
-        if (this._handlingMouseEvent) {
-          return;
-        }
         if (this._isDrag) {
           this._doDrag(evt);
         } else if (this._isResize) {
@@ -1210,6 +1208,10 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
           }
         }
         this._logOnMouseMove();
+        if (!this._isDrag && !this._isResize && !this._resizeMode && !this._isButton) {
+          // Allow normal events like 'extend selection' on content element and events on external objects
+          return;
+        }
         return this._suppressEvent(evt);
       },
       _logOnMouseUp: function _logOnMouseUp() {
@@ -1217,6 +1219,10 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
       },
       _onMouseUp: function _onMouseUp(evt) {
         evt = evt || window.event;
+        if (!this._isDrag && !this._isResize && !this._resizeMode && !this._isButton) {
+          // Allow normal events like 'extend selection' on content element and events on external objects
+          return;
+        }
         if (this._isDrag) {
           this._setCursor('');
           this._isDrag = false;
